@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>하나EZ 다이렉트 송금 모니터링</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">
+          <img src="logo.png" alt="하나은행 로고" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <div class="logo-placeholder" aria-hidden="true" style="display:none;">H</div>
+        </div>
+        <div class="brand-text">
+          <strong>하나은행</strong>
+          <span>Hana Bank</span>
+        </div>
+      </div>
+
+      <nav class="side-nav">
+        <a class="nav-item active" href="#dashboard">Dashboard</a>
+        <a class="nav-item" href="#country">국가별 현황</a>
+        <a class="nav-item" href="#errors">오류 현황</a>
+        <a class="nav-item" href="#report">보고서 생성</a>
+        <a class="nav-item" href="#settings">설정</a>
+      </nav>
+
+      <div class="sidebar-card">
+        <div class="sidebar-card-label">모니터링 상태</div>
+        <div class="status-badge success">정상 모니터링 중</div>
+        <p>브라우저 로컬에서 데이터만 처리하며 서버 전송은 없습니다.</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1>하나EZ 다이렉트 송금 모니터링</h1>
+          <p class="subtitle">글로벌디지털팀 업무용 송금 운영 대시보드</p>
+        </div>
+        <div class="topbar-meta">
+          <div class="meta-pill"><span>오늘 날짜</span><strong id="todayDate">-</strong></div>
+          <div class="meta-pill"><span>업무 담당자</span><strong>글로벌디지털팀</strong></div>
+          <div class="status-badge live">정상 모니터링 중</div>
+        </div>
+      </header>
+
+      <section class="kpi-grid" id="dashboard">
+        <article class="kpi-card accent">
+          <span class="kpi-label">총 송금 건수</span>
+          <strong id="kpiTotal">0</strong>
+          <small>전체 처리량 기준</small>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">성공 건수</span>
+          <strong id="kpiSuccess">0</strong>
+          <small class="success-text">정상 처리 완료</small>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">실패 건수</span>
+          <strong id="kpiFail">0</strong>
+          <small class="danger-text">오류 또는 반려 건</small>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">실패율</span>
+          <strong id="kpiFailRate">0.0%</strong>
+          <small>실패 / 총 송금</small>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">전일 대비 증감률</span>
+          <strong id="kpiGrowth">0.0%</strong>
+          <small>전일 건수 기준</small>
+        </article>
+      </section>
+
+      <section class="panel-grid">
+        <article class="panel upload-panel">
+          <div class="panel-head">
+            <div>
+              <h2>파일 업로드</h2>
+              <p>CSV 파일을 업로드하거나 샘플 데이터를 불러와 즉시 분석할 수 있습니다.</p>
+            </div>
+            <div class="panel-actions">
+              <button class="btn ghost" id="sampleDataBtn">샘플 데이터 불러오기</button>
+              <button class="btn primary" id="downloadReportBtn">보고서 다운로드(CSV)</button>
+            </div>
+          </div>
+
+          <div class="upload-box" id="uploadBox">
+            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" />
+            <div class="upload-icon">⬆</div>
+            <strong>CSV 또는 엑셀 파일을 드래그하거나 클릭해 업로드</strong>
+            <span>우선 CSV 기준으로 안정적으로 동작하며, 엑셀은 추후 확장 가능합니다.</span>
+          </div>
+          <div class="upload-note">예시 컬럼: date, country, service, count, successCount, failCount, errorCode, errorMessage, previousCount</div>
+        </article>
+
+        <article class="panel chart-panel" id="country">
+          <div class="panel-head compact">
+            <div>
+              <h2>국가별 송금 현황</h2>
+              <p>국가별 총 송금 건수를 시각화합니다.</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="countryChart"></canvas></div>
+        </article>
+      </section>
+
+      <section class="panel-grid">
+        <article class="panel chart-panel" id="errors">
+          <div class="panel-head compact">
+            <div>
+              <h2>오류 코드별 현황</h2>
+              <p>오류 코드와 건수를 확인합니다.</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="errorChart"></canvas></div>
+        </article>
+
+        <article class="panel summary-panel" id="report">
+          <div class="panel-head compact">
+            <div>
+              <h2>자동 생성 보고서</h2>
+              <p>운영 보고서 문구를 자동으로 생성하고 복사할 수 있습니다.</p>
+            </div>
+            <button class="btn ghost" id="copySummaryBtn">문구 복사</button>
+          </div>
+          <div class="summary-box" id="summaryText"></div>
+        </article>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="panel-head">
+          <div>
+            <h2>상세 데이터 테이블</h2>
+            <p>국가, 상태, 오류코드로 필터링하고 컬럼별 정렬이 가능합니다.</p>
+          </div>
+        </div>
+
+        <div class="filters">
+          <label>
+            <span>국가</span>
+            <select id="countryFilter"></select>
+          </label>
+          <label>
+            <span>상태</span>
+            <select id="statusFilter">
+              <option value="all">전체</option>
+              <option value="success">성공</option>
+              <option value="fail">실패</option>
+            </select>
+          </label>
+          <label>
+            <span>오류코드</span>
+            <select id="errorFilter"></select>
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-sort="date">거래일자</th>
+                <th data-sort="country">국가</th>
+                <th data-sort="service">서비스명</th>
+                <th data-sort="count">송금건수</th>
+                <th data-sort="successCount">성공건수</th>
+                <th data-sort="failCount">실패건수</th>
+                <th data-sort="status">상태</th>
+                <th data-sort="errorCode">오류코드</th>
+                <th>오류내용</th>
+                <th data-sort="previousCount">전일건수</th>
+                <th data-sort="growthRate">전일 대비 증감률</th>
+              </tr>
+            </thead>
+            <tbody id="dataTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel report-panel" id="settings">
+        <div class="panel-head compact">
+          <div>
+            <h2>운영 요약</h2>
+            <p>이번 일자 기준 송금 운영 현황을 빠르게 확인합니다.</p>
+          </div>
+        </div>
+        <div class="report-metrics" id="reportStats"></div>
+      </section>
+
+      <footer class="footer">
+        Global Digital Team · HanaEZ Direct Remittance Monitoring
+      </footer>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
