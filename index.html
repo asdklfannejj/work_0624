@@ -77,6 +77,42 @@
         </article>
       </section>
 
+      <section class="panel-grid dashboard-grid">
+        <article class="panel chart-panel focus-panel large-panel" id="trend">
+          <div class="panel-head compact">
+            <div>
+              <h2>송금 추세</h2>
+              <p>일자별 총 송금과 성공/실패 추이를 함께 확인합니다.</p>
+            </div>
+          </div>
+          <div class="chart-wrap tall"><canvas id="trendChart"></canvas></div>
+        </article>
+
+        <article class="panel chart-panel focus-panel" id="realtime">
+          <div class="panel-head compact">
+            <div>
+              <h2>실시간 송금 현황</h2>
+              <p>분 단위로 변하는 처리량과 지연 상태를 시뮬레이션으로 보여줍니다.</p>
+            </div>
+          </div>
+          <div class="realtime-box">
+            <div class="realtime-kpi">
+              <strong id="liveCount">0</strong>
+              <span>현재 분 처리건수</span>
+            </div>
+            <div class="realtime-kpi">
+              <strong id="liveQueue">0</strong>
+              <span>대기 건수</span>
+            </div>
+            <div class="realtime-kpi">
+              <strong id="liveDelay">0ms</strong>
+              <span>평균 응답 지연</span>
+            </div>
+          </div>
+          <div class="chart-wrap small"><canvas id="liveChart"></canvas></div>
+        </article>
+      </section>
+
       <section class="panel-grid">
         <article class="panel upload-panel focus-panel" id="upload">
           <div class="panel-head">
@@ -107,6 +143,28 @@
             </div>
           </div>
           <div class="chart-wrap"><canvas id="countryChart"></canvas></div>
+        </article>
+      </section>
+
+      <section class="panel-grid">
+        <article class="panel chart-panel focus-panel" id="status">
+          <div class="panel-head compact">
+            <div>
+              <h2>성공 / 실패 비중</h2>
+              <p>전체 송금에서 성공과 실패가 차지하는 비율을 확인합니다.</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+        </article>
+
+        <article class="panel chart-panel focus-panel" id="countryFlow">
+          <div class="panel-head compact">
+            <div>
+              <h2>국가별 처리 흐름</h2>
+              <p>국가별 송금 건수와 오류 건수를 비교합니다.</p>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="countryFlowChart"></canvas></div>
         </article>
       </section>
 
@@ -192,6 +250,11 @@
             <h2>운영 요약</h2>
             <p>이번 일자 기준 송금 운영 현황을 빠르게 확인합니다.</p>
           </div>
+        </div>
+        <div class="live-strip">
+          <div><span>실시간 처리</span><strong id="liveStatusText">집계 중</strong></div>
+          <div><span>최종 반영</span><strong id="liveUpdatedAt">-</strong></div>
+          <div><span>현재 상태</span><strong>정상 모니터링</strong></div>
         </div>
         <div class="report-metrics" id="reportStats"></div>
         <div class="report-detail-grid" id="reportDetails"></div>

@@ -1,7 +1,9 @@
 /**
  * 하나EZ 다이렉트 송금 모니터링
- * - 외부 서버 없이 브라우저 로컬에서만 동작
- * - CSV 업로드 / 샘플 데이터 / 테이블 필터 / 정렬 / 차트 / 요약 문구 / CSV 다운로드
+ * - CSV 업로드
+ * - KPI / 요약 / 필터 / 정렬
+ * - 여러 차트
+ * - 실시간 송금 현황 시뮬레이션
  */
 
 const state = {
@@ -9,9 +11,15 @@ const state = {
   filteredData: [],
   sortKey: "date",
   sortDir: "desc",
+  activeSection: "dashboard",
   countryChart: null,
   errorChart: null,
-  activeSection: "dashboard",
+  trendChart: null,
+  statusChart: null,
+  countryFlowChart: null,
+  liveChart: null,
+  liveSeries: [],
+  liveTimer: null,
 };
 
 const els = {};
@@ -21,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   setToday();
   loadSampleData();
+  startLiveSimulation();
 });
 
 function cacheElements() {
@@ -28,7 +37,8 @@ function cacheElements() {
     "todayDate", "kpiTotal", "kpiSuccess", "kpiFail", "kpiFailRate", "kpiGrowth",
     "summaryText", "reportStats", "dataTableBody", "countryFilter", "statusFilter",
     "errorFilter", "fileInput", "sampleDataBtn", "copySummaryBtn", "downloadReportBtn",
-    "uploadBox", "resetFiltersBtn", "viewAllBtn", "reportDetails"
+    "uploadBox", "resetFiltersBtn", "viewAllBtn", "reportDetails",
+    "liveCount", "liveQueue", "liveDelay", "liveStatusText", "liveUpdatedAt",
   ].forEach(id => els[id] = document.getElementById(id));
 }
 
@@ -53,20 +63,23 @@ function bindEvents() {
       if (!target) return;
       event.preventDefault();
       focusSection(target);
-      scrollToSection(target);
+      const el = document.getElementById(target);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   });
 }
 
 function setToday() {
   const today = new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric", month: "long", day: "numeric", weekday: "long"
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
   }).format(new Date());
   els.todayDate.textContent = today;
 }
 
 function loadSampleData() {
-  // 실제 업무 데이터가 없어도 바로 테스트 가능하도록 샘플 데이터를 구성한다.
   const sample = [
     { date: "2026-06-24", country: "베트남", service: "하나EZ 다이렉트 송금", count: 420, successCount: 410, failCount: 10, errorCode: "ERR-101", errorMessage: "수취은행 시스템 응답 지연", previousCount: 398 },
     { date: "2026-06-24", country: "필리핀", service: "하나EZ 다이렉트 송금", count: 315, successCount: 307, failCount: 8, errorCode: "ERR-201", errorMessage: "수취인 계좌 검증 실패", previousCount: 290 },
@@ -77,40 +90,50 @@ function loadSampleData() {
     { date: "2026-06-24", country: "필리핀", service: "하나EZ 다이렉트 송금", count: 142, successCount: 140, failCount: 2, errorCode: "ERR-501", errorMessage: "서명값 불일치", previousCount: 151 },
     { date: "2026-06-24", country: "태국", service: "하나EZ 다이렉트 송금", count: 120, successCount: 116, failCount: 4, errorCode: "ERR-101", errorMessage: "수취은행 시스템 응답 지연", previousCount: 118 },
   ];
-
   setData(sample);
+}
+
+function startLiveSimulation() {
+  state.liveSeries = Array.from({ length: 18 }, (_, i) => ({
+    label: `${String(9 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`,
+    value: 40 + Math.round(Math.random() * 20),
+  }));
+  updateLiveWidgets();
+  renderLiveChart();
+
+  if (state.liveTimer) clearInterval(state.liveTimer);
+  state.liveTimer = setInterval(() => {
+    const prev = state.liveSeries[state.liveSeries.length - 1]?.value || 50;
+    const nextValue = Math.max(20, Math.min(120, prev + Math.round((Math.random() - 0.45) * 18)));
+    const nextLabel = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    state.liveSeries.push({ label: nextLabel, value: nextValue });
+    if (state.liveSeries.length > 18) state.liveSeries.shift();
+    updateLiveWidgets();
+    renderLiveChart();
+  }, 5000);
 }
 
 function handleFileUpload(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-
-  const isCsv = file.name.toLowerCase().endsWith(".csv");
-  if (!isCsv) {
+  if (!file.name.toLowerCase().endsWith(".csv")) {
     alert("현재 예제는 CSV 기준으로 구현되어 있습니다. CSV 파일을 업로드해 주세요.");
     event.target.value = "";
     return;
   }
-
   const reader = new FileReader();
-  reader.onload = () => {
-    const rows = parseCSV(reader.result);
-    setData(rows);
-  };
+  reader.onload = () => setData(parseCSV(reader.result));
   reader.readAsText(file, "utf-8");
 }
 
 function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
+  const lines = String(text || "").trim().split(/\r?\n/);
   if (lines.length < 2) return [];
-
   const headers = splitCSVLine(lines[0]);
   return lines.slice(1).map(line => {
     const values = splitCSVLine(line);
     const row = {};
-    headers.forEach((header, index) => {
-      row[header.trim()] = values[index] ?? "";
-    });
+    headers.forEach((header, index) => row[header.trim()] = values[index] ?? "");
     return normalizeRow(row);
   });
 }
@@ -119,7 +142,6 @@ function splitCSVLine(line) {
   const result = [];
   let current = "";
   let inQuotes = false;
-
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
     const next = line[i + 1];
@@ -168,7 +190,6 @@ function setData(rows) {
 function populateFilters() {
   const countries = ["전체", ...new Set(state.rawData.map(row => row.country).filter(Boolean))];
   const errors = ["전체", ...new Set(state.rawData.map(row => row.errorCode).filter(Boolean))];
-
   els.countryFilter.innerHTML = countries.map(v => `<option value="${v === "전체" ? "all" : v}">${v}</option>`).join("");
   els.errorFilter.innerHTML = errors.map(v => `<option value="${v === "전체" ? "all" : v}">${v}</option>`).join("");
   els.statusFilter.value = "all";
@@ -180,7 +201,6 @@ function applyFilters() {
   const country = els.countryFilter.value;
   const status = els.statusFilter.value;
   const errorCode = els.errorFilter.value;
-
   state.filteredData = state.rawData.filter(row => {
     const rowStatus = row.failCount > 0 ? "fail" : "success";
     return (country === "all" || row.country === country)
@@ -191,12 +211,8 @@ function applyFilters() {
 }
 
 function handleSort(key) {
-  if (state.sortKey === key) {
-    state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
-  } else {
-    state.sortKey = key;
-    state.sortDir = "asc";
-  }
+  if (state.sortKey === key) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+  else { state.sortKey = key; state.sortDir = "asc"; }
   render();
 }
 
@@ -205,13 +221,16 @@ function render() {
   const summary = buildSummary(data);
   const stats = calculateStats(data);
   const focusStats = calculateFocusStats(data);
-
   updateKPIs(stats);
   renderSummary(summary);
   renderReportStats(stats);
   renderReportDetails(data, focusStats);
   renderTable(data);
   renderCharts(data);
+  renderTrendChart(data);
+  renderStatusChart(data);
+  renderCountryFlowChart(data);
+  renderLiveChart();
   updateFocusStyles();
 }
 
@@ -220,13 +239,13 @@ function sortData(rows) {
   return rows.sort((a, b) => {
     let av = a[state.sortKey];
     let bv = b[state.sortKey];
-    if (state.sortKey === "growthRate") {
-      av = calcGrowth(a.previousCount, a.count);
-      bv = calcGrowth(b.previousCount, b.count);
-    }
     if (state.sortKey === "status") {
       av = a.failCount > 0 ? 0 : 1;
       bv = b.failCount > 0 ? 0 : 1;
+    }
+    if (state.sortKey === "growthRate") {
+      av = calcGrowth(a.previousCount, a.count);
+      bv = calcGrowth(b.previousCount, b.count);
     }
     if (typeof av === "string") return av.localeCompare(bv, "ko") * dir;
     return (Number(av) - Number(bv)) * dir;
@@ -238,10 +257,19 @@ function calculateStats(rows) {
   const success = rows.reduce((sum, row) => sum + row.successCount, 0);
   const fail = rows.reduce((sum, row) => sum + row.failCount, 0);
   const previous = rows.reduce((sum, row) => sum + row.previousCount, 0);
-  const failRate = total ? (fail / total) * 100 : 0;
-  const growthRate = previous ? ((total - previous) / previous) * 100 : 0;
+  return {
+    total,
+    success,
+    fail,
+    failRate: total ? (fail / total) * 100 : 0,
+    growthRate: previous ? ((total - previous) / previous) * 100 : 0,
+  };
+}
 
-  return { total, success, fail, failRate, growthRate };
+function calculateFocusStats(rows) {
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  const success = rows.reduce((sum, row) => sum + row.successCount, 0);
+  return { successRate: total ? (success / total) * 100 : 0 };
 }
 
 function calcGrowth(previousCount, currentCount) {
@@ -264,8 +292,8 @@ function buildSummary(rows) {
   const successRate = stats.total ? ((stats.success / stats.total) * 100).toFixed(1) : "0.0";
   return [
     `금일 하나EZ 다이렉트 송금은 총 ${formatNumber(stats.total)}건 처리되었으며, 성공 ${formatNumber(stats.success)}건, 실패 ${formatNumber(stats.fail)}건으로 실패율은 ${stats.failRate.toFixed(1)}%입니다.`,
-    `성공률은 ${successRate}%이며, 전일 대비 증감률은 ${stats.growthRate >= 0 ? "+" : ""}${stats.growthRate.toFixed(1)}%로 확인됩니다.`,
-    topCountry ? `가장 많은 송금이 발생한 국가는 ${topCountry.label}(${formatNumber(topCountry.value)}건)입니다.` : "",
+    `성공률은 ${successRate}%이며, 전일 대비 증감률은 ${stats.growthRate >= 0 ? "+" : ""}${stats.growthRate.toFixed(1)}%입니다.`,
+    topCountry ? `최다 송금 국가는 ${topCountry.label}(${formatNumber(topCountry.value)}건)입니다.` : "",
     topError ? `가장 빈번한 오류 코드는 ${topError.label}(${formatNumber(topError.value)}건)입니다.` : "",
   ].filter(Boolean).join(" ");
 }
@@ -292,17 +320,16 @@ function renderReportStats(stats) {
 function renderReportDetails(rows, focusStats) {
   const topCountry = getTopEntry(groupSum(rows, "country"));
   const topError = getTopEntry(groupCount(rows, "errorCode"));
-  const worstRow = rows.slice().sort((a, b) => b.failCount - a.failCount)[0];
-  const bestRow = rows.length
-    ? rows.reduce((best, row) => (calcGrowth(row.previousCount, row.count) > calcGrowth(best.previousCount, best.count) ? row : best), rows[0])
-    : null;
+  const worstRow = rows.length ? rows.reduce((worst, row) => row.failCount > worst.failCount ? row : worst, rows[0]) : null;
+  const bestRow = rows.length ? rows.reduce((best, row) => calcGrowth(row.previousCount, row.count) > calcGrowth(best.previousCount, best.count) ? row : best, rows[0]) : null;
+  const successRate = focusStats.successRate.toFixed(1);
 
   const details = [
     ["최다 송금 국가", topCountry ? `${topCountry.label} / ${formatNumber(topCountry.value)}건` : "-"],
     ["최다 오류 코드", topError ? `${topError.label} / ${formatNumber(topError.value)}건` : "-"],
     ["최고 실패 건수", worstRow ? `${worstRow.country} / ${formatNumber(worstRow.failCount)}건` : "-"],
     ["최고 성장 행", bestRow ? `${bestRow.country} / ${calcGrowth(bestRow.previousCount, bestRow.count).toFixed(1)}%` : "-"],
-    ["성공률", `${focusStats.successRate.toFixed(1)}%`],
+    ["성공률", `${successRate}%`],
     ["모니터링 상태", rows.length ? "정상 감시 중" : "데이터 없음"],
   ];
 
@@ -337,34 +364,13 @@ function renderTable(rows) {
   }).join("");
 }
 
-function calculateFocusStats(rows) {
-  const total = rows.reduce((sum, row) => sum + row.count, 0);
-  const success = rows.reduce((sum, row) => sum + row.successCount, 0);
-  return {
-    successRate: total ? (success / total) * 100 : 0,
-  };
-}
-
 function renderCharts(rows) {
   const countryMap = groupSum(rows, "country");
   const errorMap = groupCount(rows, "errorCode");
-
   const countryLabels = Object.keys(countryMap);
   const countryValues = Object.values(countryMap);
   const errorLabels = Object.keys(errorMap);
   const errorValues = Object.values(errorMap);
-
-  const commonOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-    },
-    scales: {
-      x: { ticks: { color: "#9ab2a6" }, grid: { color: "rgba(255,255,255,0.05)" } },
-      y: { ticks: { color: "#9ab2a6" }, grid: { color: "rgba(255,255,255,0.05)" } },
-    },
-  };
 
   if (state.countryChart) state.countryChart.destroy();
   if (state.errorChart) state.errorChart.destroy();
@@ -382,7 +388,7 @@ function renderCharts(rows) {
         borderRadius: 10,
       }],
     },
-    options: commonOptions,
+    options: chartOptions(false, false),
   });
 
   state.errorChart = new Chart(document.getElementById("errorChart"), {
@@ -399,14 +405,124 @@ function renderCharts(rows) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: "bottom",
-          labels: { color: "#e9f5ef" },
-        },
+      plugins: { legend: { position: "bottom", labels: { color: "#e9f5ef" } } },
+    },
+  });
+}
+
+function renderTrendChart(rows) {
+  const byDate = groupByDate(rows);
+  const labels = Object.keys(byDate);
+  const totals = labels.map(label => byDate[label].total);
+  const success = labels.map(label => byDate[label].success);
+  const fail = labels.map(label => byDate[label].fail);
+
+  if (state.trendChart) state.trendChart.destroy();
+  state.trendChart = new Chart(document.getElementById("trendChart"), {
+    data: {
+      labels,
+      datasets: [
+        { type: "line", label: "총 송금", data: totals, borderColor: "#00a049", backgroundColor: "rgba(0,160,73,0.18)", tension: 0.35, fill: true },
+        { type: "line", label: "성공", data: success, borderColor: "#8ef0ba", backgroundColor: "rgba(142,240,186,0.12)", tension: 0.35, fill: false },
+        { type: "bar", label: "실패", data: fail, backgroundColor: "rgba(255,107,107,0.45)", borderRadius: 8 },
+      ],
+    },
+    options: chartOptions("bottom", false),
+  });
+}
+
+function renderStatusChart(rows) {
+  const stats = calculateStats(rows);
+  if (state.statusChart) state.statusChart.destroy();
+  state.statusChart = new Chart(document.getElementById("statusChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["성공", "실패"],
+      datasets: [{
+        data: [stats.success, stats.fail],
+        backgroundColor: ["#00a049", "#ff6b6b"],
+        borderColor: "#07140f",
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { color: "#e9f5ef" } } },
+    },
+  });
+}
+
+function renderCountryFlowChart(rows) {
+  const countries = Object.keys(groupSum(rows, "country"));
+  const totals = countries.map(country => rows.filter(row => row.country === country).reduce((sum, row) => sum + row.count, 0));
+  const fails = countries.map(country => rows.filter(row => row.country === country).reduce((sum, row) => sum + row.failCount, 0));
+
+  if (state.countryFlowChart) state.countryFlowChart.destroy();
+  state.countryFlowChart = new Chart(document.getElementById("countryFlowChart"), {
+    type: "bar",
+    data: {
+      labels: countries,
+      datasets: [
+        { label: "총 송금", data: totals, backgroundColor: "rgba(0,160,73,0.75)", borderRadius: 10 },
+        { label: "실패", data: fails, backgroundColor: "rgba(255,107,107,0.5)", borderRadius: 10 },
+      ],
+    },
+    options: chartOptions("bottom", true),
+  });
+}
+
+function renderLiveChart() {
+  const canvas = document.getElementById("liveChart");
+  if (!canvas) return;
+  if (state.liveChart) state.liveChart.destroy();
+  state.liveChart = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: state.liveSeries.map(item => item.label),
+      datasets: [{
+        label: "실시간 처리량",
+        data: state.liveSeries.map(item => item.value),
+        borderColor: "#13c86a",
+        backgroundColor: "rgba(19,200,106,0.15)",
+        tension: 0.35,
+        fill: true,
+        pointRadius: 0,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#9ab2a6" }, grid: { color: "rgba(255,255,255,0.05)" } },
+        y: { ticks: { color: "#9ab2a6" }, grid: { color: "rgba(255,255,255,0.05)" } },
       },
     },
   });
+}
+
+function updateLiveWidgets() {
+  const latest = state.liveSeries[state.liveSeries.length - 1]?.value || 0;
+  const queue = Math.max(0, Math.round(latest * 0.18));
+  const delay = Math.round(120 + latest * 4.5);
+  els.liveCount.textContent = formatNumber(latest);
+  els.liveQueue.textContent = formatNumber(queue);
+  els.liveDelay.textContent = `${formatNumber(delay)}ms`;
+  els.liveStatusText.textContent = `최신 ${latest}건 반영`;
+  els.liveUpdatedAt.textContent = new Date().toLocaleTimeString("ko-KR");
+}
+
+function chartOptions(legendPosition = "bottom", stacked = false) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: legendPosition, labels: { color: "#e9f5ef" } } },
+    scales: {
+      x: { stacked, ticks: { color: "#9ab2a6" }, grid: { color: "rgba(255,255,255,0.05)" } },
+      y: { stacked, ticks: { color: "#9ab2a6" }, grid: { color: "rgba(255,255,255,0.05)" } },
+    },
+  };
 }
 
 function groupSum(rows, key) {
@@ -419,6 +535,16 @@ function groupSum(rows, key) {
 function groupCount(rows, key) {
   return rows.reduce((acc, row) => {
     acc[row[key]] = (acc[row[key]] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function groupByDate(rows) {
+  return rows.reduce((acc, row) => {
+    if (!acc[row.date]) acc[row.date] = { total: 0, success: 0, fail: 0 };
+    acc[row.date].total += row.count;
+    acc[row.date].success += row.successCount;
+    acc[row.date].fail += row.failCount;
     return acc;
   }, {});
 }
@@ -441,21 +567,6 @@ function resetFilters() {
 function focusSection(sectionId) {
   state.activeSection = sectionId;
   updateFocusStyles();
-}
-
-function scrollToSection(sectionId) {
-  const element = document.getElementById(sectionId);
-  if (!element) return;
-
-  const rect = element.getBoundingClientRect();
-  const sectionTop = window.scrollY + rect.top;
-  const viewportCenterOffset = Math.max(140, window.innerHeight * 0.22);
-  const targetTop = Math.max(0, sectionTop - viewportCenterOffset);
-
-  window.scrollTo({
-    top: targetTop,
-    behavior: "smooth",
-  });
 }
 
 function updateFocusStyles() {
