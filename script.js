@@ -89,6 +89,18 @@ function loadSampleData() {
     { date: "2026-06-24", country: "베트남", service: "하나EZ 다이렉트 송금", count: 95, successCount: 92, failCount: 3, errorCode: "ERR-201", errorMessage: "수취인 계좌 검증 실패", previousCount: 88 },
     { date: "2026-06-24", country: "필리핀", service: "하나EZ 다이렉트 송금", count: 142, successCount: 140, failCount: 2, errorCode: "ERR-501", errorMessage: "서명값 불일치", previousCount: 151 },
     { date: "2026-06-24", country: "태국", service: "하나EZ 다이렉트 송금", count: 120, successCount: 116, failCount: 4, errorCode: "ERR-101", errorMessage: "수취은행 시스템 응답 지연", previousCount: 118 },
+    { date: "2026-06-24", country: "캄보디아", service: "하나EZ 다이렉트 송금", count: 88, successCount: 84, failCount: 4, errorCode: "ERR-202", errorMessage: "수취정보 포맷 오류", previousCount: 72 },
+    { date: "2026-06-24", country: "미얀마", service: "하나EZ 다이렉트 송금", count: 76, successCount: 70, failCount: 6, errorCode: "ERR-303", errorMessage: "거래 한도 초과", previousCount: 68 },
+    { date: "2026-06-24", country: "라오스", service: "하나EZ 다이렉트 송금", count: 64, successCount: 61, failCount: 3, errorCode: "ERR-102", errorMessage: "네트워크 응답 지연", previousCount: 58 },
+    { date: "2026-06-24", country: "싱가포르", service: "하나EZ 다이렉트 송금", count: 188, successCount: 186, failCount: 2, errorCode: "ERR-501", errorMessage: "서명값 불일치", previousCount: 172 },
+    { date: "2026-06-24", country: "홍콩", service: "하나EZ 다이렉트 송금", count: 154, successCount: 150, failCount: 4, errorCode: "ERR-111", errorMessage: "수취은행 라우팅 오류", previousCount: 139 },
+    { date: "2026-06-24", country: "중국", service: "하나EZ 다이렉트 송금", count: 204, successCount: 197, failCount: 7, errorCode: "ERR-222", errorMessage: "수취 계좌 검증 실패", previousCount: 191 },
+    { date: "2026-06-24", country: "일본", service: "하나EZ 다이렉트 송금", count: 236, successCount: 232, failCount: 4, errorCode: "ERR-101", errorMessage: "수취은행 시스템 응답 지연", previousCount: 224 },
+    { date: "2026-06-24", country: "미국", service: "하나EZ 다이렉트 송금", count: 162, successCount: 157, failCount: 5, errorCode: "ERR-401", errorMessage: "통화 변환 실패", previousCount: 168 },
+    { date: "2026-06-24", country: "캐나다", service: "하나EZ 다이렉트 송금", count: 112, successCount: 109, failCount: 3, errorCode: "ERR-114", errorMessage: "중계은행 확인 필요", previousCount: 105 },
+    { date: "2026-06-24", country: "호주", service: "하나EZ 다이렉트 송금", count: 98, successCount: 95, failCount: 3, errorCode: "ERR-401", errorMessage: "통화 변환 실패", previousCount: 91 },
+    { date: "2026-06-24", country: "영국", service: "하나EZ 다이렉트 송금", count: 84, successCount: 80, failCount: 4, errorCode: "ERR-222", errorMessage: "수취 계좌 검증 실패", previousCount: 77 },
+    { date: "2026-06-24", country: "독일", service: "하나EZ 다이렉트 송금", count: 73, successCount: 71, failCount: 2, errorCode: "ERR-115", errorMessage: "AML 검증 대기", previousCount: 69 },
   ];
   setData(sample);
 }
