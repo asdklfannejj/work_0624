@@ -22,11 +22,11 @@
       </div>
 
       <nav class="side-nav">
-        <a class="nav-item active" href="#dashboard">Dashboard</a>
-        <a class="nav-item" href="#country">국가별 현황</a>
-        <a class="nav-item" href="#errors">오류 현황</a>
-        <a class="nav-item" href="#report">보고서 생성</a>
-        <a class="nav-item" href="#settings">설정</a>
+        <a class="nav-item active" href="#dashboard" data-focus="dashboard">Dashboard</a>
+        <a class="nav-item" href="#country" data-focus="country">국가별 현황</a>
+        <a class="nav-item" href="#errors" data-focus="errors">오류 현황</a>
+        <a class="nav-item" href="#report" data-focus="report">보고서 생성</a>
+        <a class="nav-item" href="#settings" data-focus="settings">설정</a>
       </nav>
 
       <div class="sidebar-card">
@@ -49,7 +49,7 @@
         </div>
       </header>
 
-      <section class="kpi-grid" id="dashboard">
+      <section class="kpi-grid focus-section" id="dashboard">
         <article class="kpi-card accent">
           <span class="kpi-label">총 송금 건수</span>
           <strong id="kpiTotal">0</strong>
@@ -78,7 +78,7 @@
       </section>
 
       <section class="panel-grid">
-        <article class="panel upload-panel">
+        <article class="panel upload-panel focus-panel" id="upload">
           <div class="panel-head">
             <div>
               <h2>파일 업로드</h2>
@@ -99,7 +99,7 @@
           <div class="upload-note">예시 컬럼: date, country, service, count, successCount, failCount, errorCode, errorMessage, previousCount</div>
         </article>
 
-        <article class="panel chart-panel" id="country">
+        <article class="panel chart-panel focus-panel" id="country">
           <div class="panel-head compact">
             <div>
               <h2>국가별 송금 현황</h2>
@@ -111,7 +111,7 @@
       </section>
 
       <section class="panel-grid">
-        <article class="panel chart-panel" id="errors">
+        <article class="panel chart-panel focus-panel" id="errors">
           <div class="panel-head compact">
             <div>
               <h2>오류 코드별 현황</h2>
@@ -121,7 +121,7 @@
           <div class="chart-wrap"><canvas id="errorChart"></canvas></div>
         </article>
 
-        <article class="panel summary-panel" id="report">
+        <article class="panel summary-panel focus-panel" id="report">
           <div class="panel-head compact">
             <div>
               <h2>자동 생성 보고서</h2>
@@ -133,11 +133,15 @@
         </article>
       </section>
 
-      <section class="panel table-panel">
+      <section class="panel table-panel focus-panel" id="tableSection">
         <div class="panel-head">
           <div>
             <h2>상세 데이터 테이블</h2>
             <p>국가, 상태, 오류코드로 필터링하고 컬럼별 정렬이 가능합니다.</p>
+          </div>
+          <div class="panel-actions">
+            <button class="btn ghost" id="resetFiltersBtn">필터 초기화</button>
+            <button class="btn ghost" id="viewAllBtn">전체 보기</button>
           </div>
         </div>
 
@@ -190,6 +194,7 @@
           </div>
         </div>
         <div class="report-metrics" id="reportStats"></div>
+        <div class="report-detail-grid" id="reportDetails"></div>
       </section>
 
       <footer class="footer">

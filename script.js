@@ -11,6 +11,7 @@ const state = {
   sortDir: "desc",
   countryChart: null,
   errorChart: null,
+  activeSection: "dashboard",
 };
 
 const els = {};
@@ -27,7 +28,7 @@ function cacheElements() {
     "todayDate", "kpiTotal", "kpiSuccess", "kpiFail", "kpiFailRate", "kpiGrowth",
     "summaryText", "reportStats", "dataTableBody", "countryFilter", "statusFilter",
     "errorFilter", "fileInput", "sampleDataBtn", "copySummaryBtn", "downloadReportBtn",
-    "uploadBox"
+    "uploadBox", "resetFiltersBtn", "viewAllBtn", "reportDetails"
   ].forEach(id => els[id] = document.getElementById(id));
 }
 
@@ -39,9 +40,21 @@ function bindEvents() {
   els.countryFilter.addEventListener("change", applyFilters);
   els.statusFilter.addEventListener("change", applyFilters);
   els.errorFilter.addEventListener("change", applyFilters);
+  els.resetFiltersBtn.addEventListener("click", resetFilters);
+  els.viewAllBtn.addEventListener("click", () => focusSection("tableSection"));
 
   document.querySelectorAll("thead th[data-sort]").forEach(th => {
     th.addEventListener("click", () => handleSort(th.dataset.sort));
+  });
+
+  document.querySelectorAll(".side-nav .nav-item").forEach(link => {
+    link.addEventListener("click", (event) => {
+      const target = link.dataset.focus || link.getAttribute("href")?.replace("#", "");
+      if (!target) return;
+      event.preventDefault();
+      focusSection(target);
+      document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
 }
 
@@ -191,12 +204,15 @@ function render() {
   const data = sortData([...state.filteredData]);
   const summary = buildSummary(data);
   const stats = calculateStats(data);
+  const focusStats = calculateFocusStats(data);
 
   updateKPIs(stats);
   renderSummary(summary);
   renderReportStats(stats);
+  renderReportDetails(data, focusStats);
   renderTable(data);
   renderCharts(data);
+  updateFocusStyles();
 }
 
 function sortData(rows) {
@@ -243,7 +259,15 @@ function updateKPIs(stats) {
 
 function buildSummary(rows) {
   const stats = calculateStats(rows);
-  return `금일 하나EZ 다이렉트 송금은 총 ${formatNumber(stats.total)}건 처리되었으며, 성공 ${formatNumber(stats.success)}건, 실패 ${formatNumber(stats.fail)}건으로 실패율은 ${stats.failRate.toFixed(1)}%입니다. 전일 대비 증감률은 ${stats.growthRate >= 0 ? "+" : ""}${stats.growthRate.toFixed(1)}%로 확인됩니다.`;
+  const topCountry = getTopEntry(groupSum(rows, "country"));
+  const topError = getTopEntry(groupCount(rows, "errorCode"));
+  const successRate = stats.total ? ((stats.success / stats.total) * 100).toFixed(1) : "0.0";
+  return [
+    `금일 하나EZ 다이렉트 송금은 총 ${formatNumber(stats.total)}건 처리되었으며, 성공 ${formatNumber(stats.success)}건, 실패 ${formatNumber(stats.fail)}건으로 실패율은 ${stats.failRate.toFixed(1)}%입니다.`,
+    `성공률은 ${successRate}%이며, 전일 대비 증감률은 ${stats.growthRate >= 0 ? "+" : ""}${stats.growthRate.toFixed(1)}%로 확인됩니다.`,
+    topCountry ? `가장 많은 송금이 발생한 국가는 ${topCountry.label}(${formatNumber(topCountry.value)}건)입니다.` : "",
+    topError ? `가장 빈번한 오류 코드는 ${topError.label}(${formatNumber(topError.value)}건)입니다.` : "",
+  ].filter(Boolean).join(" ");
 }
 
 function renderSummary(text) {
@@ -259,6 +283,31 @@ function renderReportStats(stats) {
   ];
   els.reportStats.innerHTML = items.map(([label, value]) => `
     <div class="report-item">
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </div>
+  `).join("");
+}
+
+function renderReportDetails(rows, focusStats) {
+  const topCountry = getTopEntry(groupSum(rows, "country"));
+  const topError = getTopEntry(groupCount(rows, "errorCode"));
+  const worstRow = rows.slice().sort((a, b) => b.failCount - a.failCount)[0];
+  const bestRow = rows.length
+    ? rows.reduce((best, row) => (calcGrowth(row.previousCount, row.count) > calcGrowth(best.previousCount, best.count) ? row : best), rows[0])
+    : null;
+
+  const details = [
+    ["최다 송금 국가", topCountry ? `${topCountry.label} / ${formatNumber(topCountry.value)}건` : "-"],
+    ["최다 오류 코드", topError ? `${topError.label} / ${formatNumber(topError.value)}건` : "-"],
+    ["최고 실패 건수", worstRow ? `${worstRow.country} / ${formatNumber(worstRow.failCount)}건` : "-"],
+    ["최고 성장 행", bestRow ? `${bestRow.country} / ${calcGrowth(bestRow.previousCount, bestRow.count).toFixed(1)}%` : "-"],
+    ["성공률", `${focusStats.successRate.toFixed(1)}%`],
+    ["모니터링 상태", rows.length ? "정상 감시 중" : "데이터 없음"],
+  ];
+
+  els.reportDetails.innerHTML = details.map(([label, value]) => `
+    <div class="detail-card">
       <span>${label}</span>
       <strong>${value}</strong>
     </div>
@@ -286,6 +335,14 @@ function renderTable(rows) {
       </tr>
     `;
   }).join("");
+}
+
+function calculateFocusStats(rows) {
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  const success = rows.reduce((sum, row) => sum + row.successCount, 0);
+  return {
+    successRate: total ? (success / total) * 100 : 0,
+  };
 }
 
 function renderCharts(rows) {
@@ -370,6 +427,39 @@ function copySummary() {
   navigator.clipboard.writeText(els.summaryText.textContent || "")
     .then(() => alert("보고서 요약 문구를 복사했습니다."))
     .catch(() => alert("복사에 실패했습니다. 브라우저 권한을 확인해 주세요."));
+}
+
+function resetFilters() {
+  els.countryFilter.value = "all";
+  els.statusFilter.value = "all";
+  els.errorFilter.value = "all";
+  state.filteredData = [...state.rawData];
+  render();
+  focusSection("tableSection");
+}
+
+function focusSection(sectionId) {
+  state.activeSection = sectionId;
+  updateFocusStyles();
+}
+
+function updateFocusStyles() {
+  document.querySelectorAll(".focus-panel, .focus-section").forEach(el => {
+    const isActive = el.id === state.activeSection;
+    el.classList.toggle("active-focus", isActive);
+    el.classList.toggle("dimmed", state.activeSection !== "dashboard" && !isActive);
+  });
+  document.querySelectorAll(".side-nav .nav-item").forEach(link => {
+    const target = link.dataset.focus || link.getAttribute("href")?.replace("#", "");
+    link.classList.toggle("active", target === state.activeSection);
+  });
+}
+
+function getTopEntry(map) {
+  const entries = Object.entries(map || {});
+  if (!entries.length) return null;
+  const [label, value] = entries.sort((a, b) => b[1] - a[1])[0];
+  return { label, value };
 }
 
 function downloadReport() {
