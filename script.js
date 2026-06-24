@@ -53,7 +53,7 @@ function bindEvents() {
       if (!target) return;
       event.preventDefault();
       focusSection(target);
-      document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToSection(target);
     });
   });
 }
@@ -441,6 +441,21 @@ function resetFilters() {
 function focusSection(sectionId) {
   state.activeSection = sectionId;
   updateFocusStyles();
+}
+
+function scrollToSection(sectionId) {
+  const element = document.getElementById(sectionId);
+  if (!element) return;
+
+  const rect = element.getBoundingClientRect();
+  const sectionTop = window.scrollY + rect.top;
+  const viewportCenterOffset = Math.max(140, window.innerHeight * 0.22);
+  const targetTop = Math.max(0, sectionTop - viewportCenterOffset);
+
+  window.scrollTo({
+    top: targetTop,
+    behavior: "smooth",
+  });
 }
 
 function updateFocusStyles() {
